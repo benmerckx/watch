@@ -56,7 +56,7 @@ function createServer(port: Int, cb: (server: Server) -> Void) {
           socket.close(() -> {
             switch Process.spawn(loop, 'haxe', ['haxe', '--wait', '$port'], {
               redirect: [stdout, stderr],
-              onExit: (_, exitStatus, _) -> fail('Compilation server exited', exitStatus)
+              onExit: (_, exitStatus, _) -> fail('Completion server exited', exitStatus)
             }) {
               case Ok(process):
                 cb({

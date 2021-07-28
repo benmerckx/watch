@@ -1,6 +1,6 @@
 # watch
 
-Creates a completion server and rebuilds the project on source file changes.
+Creates a completion server and rebuilds the project on source file changes.  
 Requires Haxe 4.2+
 
 ## Usage

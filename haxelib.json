@@ -3,7 +3,7 @@
   "license": "MIT",
   "tags": ["cross"],
   "classPath": "src",
-  "description": "Watch and rebuild.",
+  "description": "Rebuilds haxe projects on source file changes",
   "contributors": ["benmerckx"],
   "releasenote": "See repository",
   "version": "0.0.0",
