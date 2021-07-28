@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "prepare": "lix download",
+    "test": "haxe tests.hxml -lib watch"
+  },
+  "devDependencies": {
+    "lix": "^15.10.1"
+  }
+}

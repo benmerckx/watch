@@ -1,0 +1,12 @@
+{
+  "name": "watch",
+  "license": "MIT",
+  "tags": ["cross"],
+  "classPath": "src",
+  "description": "Watch and rebuild.",
+  "contributors": ["benmerckx"],
+  "releasenote": "See repository",
+  "version": "0.0.0",
+  "url": "https://github.com/benmerckx/watch",
+  "dependencies": {}
+}
