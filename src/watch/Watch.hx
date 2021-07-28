@@ -156,7 +156,7 @@ function register() {
                 if (hasError) 
                   Sys.println('\x1b[90m> Found errors\x1b[39m');
                 else 
-                  Sys.println('\x1b[34m> Build completed in ${formatDuration(duration)}\x1b[39m');
+                  Sys.println('\x1b[36m> Build completed in ${formatDuration(duration)}\x1b[39m');
               });
             });
           }, 100);
