@@ -18,22 +18,22 @@ function fail(message: String, ?error: Dynamic) {
 }
 
 function buildArguments() {
-	final args = Sys.args();
-	final forward = [];
-	var i = 0;
+  final args = Sys.args();
+  final forward = [];
+  var i = 0;
   function skip() i++;
-	while (i < args.length) {
-		switch [args[i], args[i + 1]] {
-			case 
+  while (i < args.length) {
+    switch [args[i], args[i + 1]] {
+      case 
         ['-L' | '-lib' | '--library', 'watch'],
         ['--macro', 'watch.Watch.register()'],
         ['-D', 'w']:
-				skip();
-			default:
-				forward.push(args[i]);
-		}
-		skip();
-	}
+        skip();
+      default:
+        forward.push(args[i]);
+    }
+    skip();
+  }
   return forward;
 }
 
