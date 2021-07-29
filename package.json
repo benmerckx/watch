@@ -2,7 +2,7 @@
   "scripts": {
     "submit": "bestzip submit.zip src/* haxelib.json readme.md extraParams.hxml && haxelib submit submit.zip && rm submit.zip",
     "prepare": "lix download",
-    "test": "haxe tests.hxml -lib watch"
+    "test": "haxe tests.hxml -lib watch -D watch.run=\"echo run\""
   },
   "devDependencies": {
     "bestzip": "^2.2.0",

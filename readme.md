@@ -15,6 +15,10 @@ Append the library to the haxe build command:
 haxe build.hxml -lib watch
 ```
 
+### Defines
+
+- `-D watch.run` command to execute on successful builds
+
 ### Important
 
 Do not add this library to any hxml or config read by your IDE, autocompletion

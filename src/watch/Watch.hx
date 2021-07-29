@@ -155,10 +155,15 @@ function register() {
               building = false;
               final duration = (Sys.time() - start) * 1000;
               timer.close(() -> {
-                if (hasError) 
+                if (hasError) {
                   Sys.println('\x1b[90m> Found errors\x1b[39m');
-                else 
+                } else { 
                   Sys.println('\x1b[36m> Build completed in ${formatDuration(duration)}\x1b[39m');
+                  switch Context.definedValue('watch.run') {
+                    case null:
+                    case v: Sys.command(v);
+                  }
+                }
               });
             });
           }, 100);
