@@ -19,6 +19,14 @@ haxe build.hxml -lib watch
 
 - `-D watch.run` command to execute on successful builds
 
+### Example
+
+Compiles test.js and runs the scripts with node on successful builds. 
+
+````
+haxe --main Main --library hxnodejs --js test.js --library watch -D watch.run="node test.js" 
+````
+
 ### Important
 
 Do not add this library to any hxml or config read by your IDE, autocompletion

@@ -58,7 +58,7 @@ function createServer(port: Int, cb: (server: Server) -> Void) {
         });
       case Error(UV_ENOENT) if (Sys.systemName() == 'Windows' && extension == ''):
         start('.cmd');
-      case Error(e): fail('Could not start completion server', e);
+      case Error(e): fail('Could not start completion server, is haxe in path?', e);
     }
   }
   switch [SockAddr.ipv4('127.0.0.1', port), Tcp.init(loop)] {
