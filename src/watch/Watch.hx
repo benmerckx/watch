@@ -12,9 +12,9 @@ final loop = sys.thread.Thread.current().events;
 
 function fail(message: String, ?error: Dynamic) {
   Sys.println(message);
-  if (error) trace(error);
+  if (error != null) 
+    Sys.print('$error');
   Sys.exit(1);
-  return null;
 }
 
 function buildArguments() {
@@ -26,8 +26,7 @@ function buildArguments() {
     switch [args[i], args[i + 1]] {
       case 
         ['-L' | '-lib' | '--library', 'watch'],
-        ['--macro', 'watch.Watch.register()'],
-        ['-D', 'w']:
+        ['--macro', 'watch.Watch.register()']:
         skip();
       default:
         forward.push(args[i]);
@@ -45,6 +44,23 @@ typedef Server = {
 function createServer(port: Int, cb: (server: Server) -> Void) {
   final stdout = Process.inheritFd(Process.stdout, Process.stdout);
   final stderr = Process.inheritFd(Process.stderr, Process.stderr);
+  function start(extension = '') {
+    switch Process.spawn(loop, 'haxe' + extension, ['haxe', '--wait', '$port'], {
+      redirect: [stdout, stderr],
+      onExit: (_, exitStatus, _) -> fail('Completion server exited', exitStatus)
+    }) {
+      case Ok(process):
+        cb({
+          build: (config, done) -> {
+            createBuild(port, config, done);
+          },
+          close: (done) -> process.close(done)
+        });
+      case Error(UV_ENOENT) if (Sys.systemName() == 'Windows' && extension == ''):
+        start('.cmd');
+      case Error(e): fail('Could not start completion server', e);
+    }
+  }
   switch [SockAddr.ipv4('127.0.0.1', port), Tcp.init(loop)] {
     case [Ok(addr), Ok(socket)]:
       socket.connect(addr, res -> switch res {
@@ -53,21 +69,7 @@ function createServer(port: Int, cb: (server: Server) -> Void) {
             createServer(port + 1, cb);
           });
         case Error(_):
-          socket.close(() -> {
-            switch Process.spawn(loop, 'haxe', ['haxe', '--wait', '$port'], {
-              redirect: [stdout, stderr],
-              onExit: (_, exitStatus, _) -> fail('Completion server exited', exitStatus)
-            }) {
-              case Ok(process):
-                cb({
-                  build: (config, done) -> {
-                    createBuild(port, config, done);
-                  },
-                  close: (done) -> process.close(done)
-                });
-              case Error(e): fail('Could not start completion server', e);
-            }
-          });
+          socket.close(() -> start());
       });
     case [_, Error(e)] | [Error(e), _]: 
       fail('Could not check if port is open', e);
