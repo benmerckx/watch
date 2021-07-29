@@ -6,7 +6,7 @@
   "description": "Rebuilds haxe projects on source file changes",
   "contributors": ["benmerckx"],
   "releasenote": "See repository",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "url": "https://github.com/benmerckx/watch",
   "dependencies": {}
 }
