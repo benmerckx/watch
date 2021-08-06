@@ -1,5 +1,6 @@
 package watch;
 
+import eval.NativeString;
 import eval.luv.Timer;
 import eval.luv.FsEvent;
 import eval.luv.Process;
@@ -76,6 +77,23 @@ function createServer(port: Int, cb: (server: Server) -> Void) {
   }
 }
 
+function runCommand(command: String) {
+  // I have no clue how this stuff should actually be split
+  final args = command.split(' ').map(_ -> (_: NativeString));
+  final stdout = Process.inheritFd(Process.stdout, Process.stdout);
+  final stderr = Process.inheritFd(Process.stderr, Process.stderr);
+  return switch Process.spawn(loop, args[0], args, {
+    redirect: [stdout, stderr]
+  }) {
+    case Ok(process): cb -> {
+      process.close(cb);
+    }
+    case Error(e): 
+      Sys.stderr().writeString('Could not run "$command", because $e');
+      cb -> cb();
+  }
+}
+
 function createBuild(port: Int, config: Array<String>, done: (hasError: Bool) -> Void, retry = 0) {
   if (retry > 1000) fail('Could not connect to port $port');
   switch [
@@ -137,6 +155,7 @@ function register() {
   createServer(port, server -> {
     var next: Timer;
     var building = false;
+    var closeRun = cb -> cb();
     function build() {
       switch Timer.init(loop) {
         case Ok(timer):
@@ -154,17 +173,19 @@ function register() {
             server.build(config, (hasError: Bool) -> {
               building = false;
               final duration = (Sys.time() - start) * 1000;
-              timer.close(() -> {
-                if (hasError) {
-                  Sys.println('\x1b[90m> Found errors\x1b[39m');
-                } else { 
-                  Sys.println('\x1b[36m> Build completed in ${formatDuration(duration)}\x1b[39m');
-                  switch Context.definedValue('watch.run') {
-                    case null:
-                    case v: Sys.command(v);
+              closeRun(() -> 
+                timer.close(() -> {
+                  if (hasError) {
+                    Sys.println('\x1b[90m> Found errors\x1b[39m');
+                  } else { 
+                    Sys.println('\x1b[36m> Build completed in ${formatDuration(duration)}\x1b[39m');
+                    switch Context.definedValue('watch.run') {
+                      case null:
+                      case v: closeRun = runCommand(v);
+                    }
                   }
-                }
-              });
+                })
+              );
             });
           }, 100);
         case Error(e): fail('Could not init time', e);
