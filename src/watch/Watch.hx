@@ -82,10 +82,17 @@ function runCommand(command: String) {
   final args = command.split(' ').map(_ -> (_: NativeString));
   final stdout = Process.inheritFd(Process.stdout, Process.stdout);
   final stderr = Process.inheritFd(Process.stderr, Process.stderr);
+  var exited = false;
   return switch Process.spawn(loop, args[0], args, {
-    redirect: [stdout, stderr]
+    redirect: [stdout, stderr],
+    onExit: (_, _, _) -> exited = true
   }) {
     case Ok(process): cb -> {
+      // process.kill results in "Uncaught exception Cannot call null"
+      switch Process.killPid(process.pid(), SIGKILL) {
+        case Ok(_):
+        case Error(e): fail('Could not end run command', e);
+      }
       process.close(cb);
     }
     case Error(e): 
