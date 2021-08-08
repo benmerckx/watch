@@ -89,10 +89,11 @@ function runCommand(command: String) {
   }) {
     case Ok(process): cb -> {
       // process.kill results in "Uncaught exception Cannot call null"
-      switch Process.killPid(process.pid(), SIGKILL) {
-        case Ok(_):
-        case Error(e): fail('Could not end run command', e);
-      }
+      if (!exited)
+        switch Process.killPid(process.pid(), SIGKILL) {
+          case Ok(_):
+          case Error(e): fail('Could not end run command', e);
+        }
       process.close(cb);
     }
     case Error(e): 
@@ -180,7 +181,8 @@ function register() {
             server.build(config, (hasError: Bool) -> {
               building = false;
               final duration = (Sys.time() - start) * 1000;
-              closeRun(() -> 
+              closeRun(() -> {
+                closeRun = cb -> cb();
                 timer.close(() -> {
                   if (hasError) {
                     Sys.println('\x1b[90m> Found errors\x1b[39m');
@@ -191,8 +193,8 @@ function register() {
                       case v: closeRun = runCommand(v);
                     }
                   }
-                })
-              );
+                });
+              });
             });
           }, 100);
         case Error(e): fail('Could not init time', e);
