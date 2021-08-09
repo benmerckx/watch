@@ -8,6 +8,7 @@ import eval.luv.SockAddr;
 import eval.luv.Tcp;
 import haxe.macro.Context;
 import sys.FileSystem;
+using StringTools;
 
 final loop = sys.thread.Thread.current().events;
 
@@ -34,7 +35,13 @@ function buildArguments() {
     }
     skip();
   }
-  return forward;
+  final res = [];
+  for (arg in forward)
+    if (!arg.startsWith('-') && res.length > 0)
+      res[res.length - 1] += ' $arg';
+    else
+      res.push(arg);
+  return res;
 }
 
 typedef Server = {
@@ -43,6 +50,11 @@ typedef Server = {
 }
 
 function createServer(port: Int, cb: (server: Server) -> Void) {
+  if (Context.defined('watch.connect'))
+    return cb({
+      build: (config, done) -> createBuild(port, config, done),
+      close: (done) -> done()
+    });
   final stdout = Process.inheritFd(Process.stdout, Process.stdout);
   final stderr = Process.inheritFd(Process.stderr, Process.stderr);
   function start(extension = '') {
@@ -157,7 +169,10 @@ function formatDuration(duration: Float) {
 }
 
 function register() {
-  final port = 45612;
+  final port = switch Context.definedValue('watch.port') {
+    case null: 45612;
+    case v: Std.parseInt(v);
+  }
   final paths = Context.getClassPath();
   final config = buildArguments();
   createServer(port, server -> {

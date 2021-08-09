@@ -19,13 +19,18 @@ haxe build.hxml -lib watch
 
 ### Defines
 
-- `-D watch.run` command to execute on successful builds
+All of these are optional.
+
+| Define                    | Description                                                    |
+| ------------------------- | -------------------------------------------------------------- |
+| `-D watch.run=(string)`   | command to execute on successful builds                        |
+| `-D watch.port=(integer)` | use this port for the completion server                        |
+| `-D watch.connect`        | connect to a running completion server (use with `watch.port`) |
 
 ### Example
 
-Compiles test.js and runs the scripts with node on successful builds. 
+Compiles test.js and runs the scripts with node on successful builds.
 
 ```
-haxe --main Main --library hxnodejs --js test.js --library watch -D watch.run="node test.js" 
+haxe --main Main --library hxnodejs --js test.js --library watch -D watch.run="node test.js"
 ```
-  
