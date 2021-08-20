@@ -174,6 +174,12 @@ function register() {
     case v: Std.parseInt(v);
   }
   final paths = Context.getClassPath();
+  var excludes = [];
+  switch Context.definedValue('watch.excludes') {
+		case null:
+		case v:
+			excludes = StringTools.replace(v, " ", "").split(",");
+	}
   final config = buildArguments();
   createServer(port, server -> {
     var next: Timer;
@@ -224,8 +230,20 @@ function register() {
             ], res -> 
               switch res {
                 case Ok({file: (_.toString()) => file}):
-                  if (StringTools.endsWith(file, '.hx'))
+                  if (StringTools.endsWith(file, '.hx')) {
+                    if (excludes.length > 0) {
+                      var skip = false;
+                      for (exclude in excludes) {
+                          if (StringTools.startsWith(file, exclude)) {
+                              skip = true;
+                              break;
+                          }
+                      }
+                      if (skip)
+                        return;
+                    }
                     build();
+                  }
                 case Error(e):
               }
             );
