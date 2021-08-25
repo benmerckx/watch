@@ -1,2 +1,5 @@
+-cp src
+--library helder.unit
+-D helder.unit.package=tests
+--main helder.Unit
 --interp
---main test.Run

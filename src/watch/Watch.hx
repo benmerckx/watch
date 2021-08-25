@@ -7,8 +7,10 @@ import eval.luv.Process;
 import eval.luv.SockAddr;
 import eval.luv.Tcp;
 import haxe.macro.Context;
+import haxe.io.Path;
 import sys.FileSystem;
 using StringTools;
+using Lambda;
 
 final loop = sys.thread.Thread.current().events;
 
@@ -19,8 +21,12 @@ function fail(message: String, ?error: Dynamic) {
   Sys.exit(1);
 }
 
-function buildArguments() {
-  final args = Sys.args();
+private final noInputOptions = [
+  'interp', 'haxelib-global', 'no-traces', 'no-output', 'no-inline', 'no-opt',
+  'v', 'verbose', 'debug', 'prompt', 'times', 'next', 'each', 'flash-strict'
+]; 
+
+function buildArguments(args: Array<String>) {
   final forward = [];
   var i = 0;
   function skip() i++;
@@ -36,11 +42,40 @@ function buildArguments() {
     skip();
   }
   final res = [];
-  for (arg in forward)
-    if (!arg.startsWith('-') && res.length > 0)
-      res[res.length - 1] += ' $arg';
-    else
-      res.push(arg);
+  var inputExpected = false;
+  for (arg in forward) {
+    final isOption = arg.startsWith('-');
+    if (inputExpected && !isOption) res[res.length - 1] += ' $arg';
+    else res.push(arg);
+    inputExpected = 
+      isOption && noInputOptions.indexOf(arg.replace('-', '')) == -1;
+  }
+  return res;
+}
+
+function isSubOf(path: String, parent: String) {
+  var a = Path.normalize(path);
+  var b = Path.normalize(parent);
+  final caseInsensitive = Sys.systemName() == 'Windows';
+  if (caseInsensitive) {
+    a = a.toLowerCase();
+    b = b.toLowerCase();
+  }
+  return a.startsWith(b + '/');
+}
+
+function dedupePaths(paths: Array<String>) {
+  final res = [];
+  final todo = paths.slice(0);
+  todo.sort((a, b) -> {
+    return b.length - a.length;
+  });
+  for (i in 0 ...todo.length) {
+    final path = todo[i];
+    final isSubOfNext = 
+      todo.slice(i + 1).exists(parent -> isSubOf(path, parent));
+    if (!isSubOfNext) res.push(path);
+  }
   return res;
 }
 
@@ -173,8 +208,8 @@ function register() {
     case null: 45612;
     case v: Std.parseInt(v);
   }
-  final paths = Context.getClassPath();
-  final config = buildArguments();
+  final paths = dedupePaths(Context.getClassPath().map(FileSystem.absolutePath));
+  final config = buildArguments(Sys.args());
   createServer(port, server -> {
     var next: Timer;
     var building = false;
@@ -219,7 +254,7 @@ function register() {
       for (path in paths) {
         switch FsEvent.init(loop) {
           case Ok(watcher):
-            watcher.start(FileSystem.absolutePath(path), [
+            watcher.start(path, [
               FsEventFlag.FS_EVENT_RECURSIVE
             ], res -> 
               switch res {
