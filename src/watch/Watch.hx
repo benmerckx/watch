@@ -12,9 +12,9 @@ import sys.FileSystem;
 using StringTools;
 using Lambda;
 
-final loop = sys.thread.Thread.current().events;
+private final loop = sys.thread.Thread.current().events;
 
-function fail(message: String, ?error: Dynamic) {
+private function fail(message: String, ?error: Dynamic) {
   Sys.println(message);
   if (error != null) 
     Sys.print('$error');
@@ -24,9 +24,11 @@ function fail(message: String, ?error: Dynamic) {
 private final noInputOptions = [
   'interp', 'haxelib-global', 'no-traces', 'no-output', 'no-inline', 'no-opt',
   'v', 'verbose', 'debug', 'prompt', 'times', 'next', 'each', 'flash-strict'
-]; 
+];
 
-function buildArguments(args: Array<String>) {
+function buildArguments(args: Array<String>): BuildConfig {
+  final arguments = [];
+  final excludes = [];
   final forward = [];
   var i = 0;
   function skip() i++;
@@ -36,22 +38,26 @@ function buildArguments(args: Array<String>) {
         ['-L' | '-lib' | '--library', 'watch'],
         ['--macro', 'watch.Watch.register()']:
         skip();
+      case ['-D' | '--define', define] if (define.startsWith('watch.exclude')):
+        excludes.push(define.substr(define.indexOf('=') + 1));
+        skip();
       default:
         forward.push(args[i]);
     }
     skip();
   }
-  final res = [];
   var inputExpected = false;
   for (arg in forward) {
     final isOption = arg.startsWith('-');
-    if (inputExpected && !isOption) res[res.length - 1] += ' $arg';
-    else res.push(arg);
+    if (inputExpected && !isOption) arguments[arguments.length - 1] += ' $arg';
+    else arguments.push(arg);
     inputExpected = 
       isOption && noInputOptions.indexOf(arg.replace('-', '')) == -1;
   }
-  return res;
+  return {arguments: arguments, excludes: excludes}
 }
+
+typedef BuildConfig = {arguments: Array<String>, excludes: Array<String>}
 
 function isSubOf(path: String, parent: String) {
   var a = Path.normalize(path);
@@ -80,7 +86,7 @@ function dedupePaths(paths: Array<String>) {
 }
 
 typedef Server = {
-  build: (config: Array<String>, done: (hasError: Bool) -> Void) -> Void,
+  build: (config: BuildConfig, done: (hasError: Bool) -> Void) -> Void,
   close: (done: () -> Void) -> Void
 }
 
@@ -149,7 +155,7 @@ function runCommand(command: String) {
   }
 }
 
-function createBuild(port: Int, config: Array<String>, done: (hasError: Bool) -> Void, retry = 0) {
+function createBuild(port: Int, config: BuildConfig, done: (hasError: Bool) -> Void, retry = 0) {
   if (retry > 1000) fail('Could not connect to port $port');
   switch [
     SockAddr.ipv4('127.0.0.1', port), 
@@ -180,7 +186,7 @@ function createBuild(port: Int, config: Array<String>, done: (hasError: Bool) ->
               case Error(e):
                 fail('Server closed', e);
             });
-            socket.write([config.join('\n') + '\000'], (res, bytesWritten) -> switch res {
+            socket.write([config.arguments.join('\n') + '\000'], (res, bytesWritten) -> switch res {
               case Ok(_):
               case Error(e): fail('Could not write to server', e);
             });
@@ -210,6 +216,7 @@ function register() {
   }
   final paths = dedupePaths(Context.getClassPath().map(FileSystem.absolutePath));
   final config = buildArguments(Sys.args());
+  final excludes = config.excludes.map(FileSystem.absolutePath);
   createServer(port, server -> {
     var next: Timer;
     var building = false;
@@ -256,11 +263,16 @@ function register() {
           case Ok(watcher):
             watcher.start(path, [
               FsEventFlag.FS_EVENT_RECURSIVE
-            ], res -> 
+            ], res ->
               switch res {
                 case Ok({file: (_.toString()) => file}):
-                  if (StringTools.endsWith(file, '.hx'))
+                  if (StringTools.endsWith(file, '.hx')) {
+                    for (exclude in excludes) {
+                      if (isSubOf(FileSystem.absolutePath(file), exclude)) 
+                        return;
+                    }
                     build();
+                  }
                 case Error(e):
               }
             );
