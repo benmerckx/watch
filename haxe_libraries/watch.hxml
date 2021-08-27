@@ -1,2 +1,3 @@
+# @run: haxelib run-dir watch .
 -cp src
 extraParams.hxml

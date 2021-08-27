@@ -1,12 +1,13 @@
 {
   "name": "watch",
+  "main": "Run",
   "license": "MIT",
   "tags": ["cross"],
   "classPath": "src",
   "description": "Rebuilds haxe projects on source file changes",
   "contributors": ["benmerckx"],
   "releasenote": "See repository",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "url": "https://github.com/benmerckx/watch",
   "dependencies": {}
 }

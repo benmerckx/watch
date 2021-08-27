@@ -250,10 +250,10 @@ lazystream@^1.0.0:
   dependencies:
     readable-stream "^2.0.5"
 
-lix@^15.10.1:
-  version "15.10.1"
-  resolved "https://registry.yarnpkg.com/lix/-/lix-15.10.1.tgz#69392b46f4f4538206cda1090602a8c4d8959aa2"
-  integrity sha512-UZX+p4i+2ZSEyI6p2Yu1sfC0pRRFnFHDpNQ2+FqhxmBG8cCiHZkj+I8FqCK4AUuQ/VOPE/bK69JbWez+OG3zaA==
+lix@^15.11.0:
+  version "15.11.0"
+  resolved "https://registry.yarnpkg.com/lix/-/lix-15.11.0.tgz#9904b11ae4e05c201c8ace2fbfd6c066e6c8ae62"
+  integrity sha512-3qtPAU70q8Bx5+rPvkcsFLGB2IZMX1O/p4G+NdMjulLUF1aUrf5sQfbVMZSxW5XtPlmBEzRT+zOnrSOMKNuXfA==
 
 lodash.defaults@^4.2.0:
   version "4.2.0"

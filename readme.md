@@ -13,6 +13,10 @@ Append the library to the haxe build command:
 
 > **Important:** Do not add this library to any hxml or config read by your IDE, autocompletion will not function.
 
+Alternatively, just run it:
+
+<pre><a href="https://github.com/lix-pm/lix.client">lix</a> watch build.hxml # (requires lix 15.11+)</pre>
+
 ### Defines
 
 All of these are optional.

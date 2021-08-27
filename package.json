@@ -6,6 +6,6 @@
   },
   "devDependencies": {
     "bestzip": "^2.2.0",
-    "lix": "^15.10.1"
+    "lix": "^15.11.0"
   }
 }
