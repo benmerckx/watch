@@ -209,79 +209,109 @@ function formatDuration(duration: Float) {
   return '${s}s';
 }
 
-function register() {
-  final port = switch Context.definedValue('watch.port') {
-    case null: 45612;
-    case v: Std.parseInt(v);
-  }
-  final paths = dedupePaths(Context.getClassPath().map(FileSystem.absolutePath));
-  final config = buildArguments(Sys.args());
-  final excludes = config.excludes.map(FileSystem.absolutePath);
-  createServer(port, server -> {
-    var next: Timer;
-    var building = false;
-    var closeRun = cb -> cb();
-    function build() {
-      switch Timer.init(loop) {
-        case Ok(timer):
-          if (next != null) {
-            next.stop();
+function getFreePort(done: (port: haxe.ds.Option<Int>) -> Void) {
+  return switch [
+    SockAddr.ipv4('127.0.0.1', 0),
+    Tcp.init(loop)
+  ] {
+    case [Ok(addr), Ok(socket)]:
+      switch socket.bind(addr) {
+        case Ok(_): 
+          switch socket.getSockName() {
+            case Ok(addr): 
+              socket.close(() -> done(Some(addr.port)));
+            default: 
+              socket.close(() -> done(None));
           }
-          next = timer;
-          timer.start(() -> {
-            if (building) {
-              build();
-              return;
+        default: done(None);
+      }
+    default: done(None);
+  }
+}
+
+function register() {
+  function getPort(done: (port: Int) -> Void) {
+    switch Context.definedValue('watch.port') {
+      case null: 
+        getFreePort(res -> 
+          switch res {
+            case Some(port): done(port);
+            default: fail('Could not find free port');
+          }
+        );
+      case v: done(Std.parseInt(v));
+    }
+  }
+  getPort(port -> {
+    final paths = dedupePaths(Context.getClassPath().map(FileSystem.absolutePath));
+    final config = buildArguments(Sys.args());
+    final excludes = config.excludes.map(FileSystem.absolutePath);
+    createServer(port, server -> {
+      var next: Timer;
+      var building = false;
+      var closeRun = cb -> cb();
+      function build() {
+        switch Timer.init(loop) {
+          case Ok(timer):
+            if (next != null) {
+              next.stop();
             }
-            building = true;
-            final start = Sys.time();
-            server.build(config, (hasError: Bool) -> {
-              building = false;
-              final duration = (Sys.time() - start) * 1000;
-              closeRun(() -> {
-                closeRun = cb -> cb();
-                timer.close(() -> {
-                  if (hasError) {
-                    Sys.println('\x1b[90m> Found errors\x1b[39m');
-                  } else { 
-                    Sys.println('\x1b[36m> Build completed in ${formatDuration(duration)}\x1b[39m');
-                    switch Context.definedValue('watch.run') {
-                      case null:
-                      case v: closeRun = runCommand(v);
+            next = timer;
+            timer.start(() -> {
+              if (building) {
+                build();
+                return;
+              }
+              building = true;
+              final start = Sys.time();
+              server.build(config, (hasError: Bool) -> {
+                building = false;
+                final duration = (Sys.time() - start) * 1000;
+                closeRun(() -> {
+                  closeRun = cb -> cb();
+                  timer.close(() -> {
+                    if (hasError) {
+                      Sys.println('\x1b[90m> Found errors\x1b[39m');
+                    } else { 
+                      Sys.println('\x1b[36m> Build completed in ${formatDuration(duration)}\x1b[39m');
+                      switch Context.definedValue('watch.run') {
+                        case null:
+                        case v: closeRun = runCommand(v);
+                      }
                     }
-                  }
+                  });
                 });
               });
-            });
-          }, 100);
-        case Error(e): fail('Could not init time', e);
-      }
-    }
-    function watch() {
-      for (path in paths) {
-        switch FsEvent.init(loop) {
-          case Ok(watcher):
-            watcher.start(path, [
-              FsEventFlag.FS_EVENT_RECURSIVE
-            ], res ->
-              switch res {
-                case Ok({file: (_.toString()) => file}):
-                  if (StringTools.endsWith(file, '.hx')) {
-                    for (exclude in excludes) {
-                      if (isSubOf(FileSystem.absolutePath(file), exclude)) 
-                        return;
-                    }
-                    build();
-                  }
-                case Error(e):
-              }
-            );
-          case Error(e): fail('Could not watch $path', e); 
+            }, 100);
+          case Error(e): fail('Could not init time', e);
         }
       }
-    }
-    build();
-    watch();
+      function watch() {
+        for (path in paths) {
+          switch FsEvent.init(loop) {
+            case Ok(watcher):
+              watcher.start(path, [
+                FsEventFlag.FS_EVENT_RECURSIVE
+              ], res ->
+                switch res {
+                  case Ok({file: (_.toString()) => file}):
+                    if (StringTools.endsWith(file, '.hx')) {
+                      for (exclude in excludes) {
+                        if (isSubOf(FileSystem.absolutePath(file), exclude)) 
+                          return;
+                      }
+                      build();
+                    }
+                  case Error(e):
+                }
+              );
+            case Error(e): fail('Could not watch $path', e); 
+          }
+        }
+      }
+      build();
+      watch();
+    });
   });
   loop.loop();
 }
