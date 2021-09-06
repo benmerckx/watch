@@ -264,12 +264,14 @@ function register() {
               }
               building = true;
               final start = Sys.time();
+              Sys.println('\x1b[32m> Build started');
               server.build(config, (hasError: Bool) -> {
                 building = false;
                 final duration = (Sys.time() - start) * 1000;
                 closeRun(() -> {
                   closeRun = cb -> cb();
                   timer.close(() -> {
+                    Sys.println('\x1b[32m> Build finished');
                     if (hasError) {
                       Sys.println('\x1b[90m> Found errors\x1b[39m');
                     } else { 
