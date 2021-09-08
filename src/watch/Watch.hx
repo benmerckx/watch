@@ -191,7 +191,7 @@ function createBuild(port: Int, config: BuildConfig, done: (hasError: Bool) -> V
               case Error(e): fail('Could not write to server', e);
             });
           case Error(UV_ECONNREFUSED):
-            socket.close(() -> createBuild(port, config, done, retry++));
+            socket.close(() -> createBuild(port, config, done, retry + 1));
           case Error(e): 
             fail('Could not connect to server', e);
         }
