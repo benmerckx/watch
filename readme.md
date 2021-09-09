@@ -27,6 +27,7 @@ All of these are optional.
 | `-D watch.port=(integer)`   | use this port for the completion server                                 |
 | `-D watch.connect`          | connect to a running completion server (use with `watch.port`)          |
 | `-D watch.exclude=(string)` | exclude this path from the watcher (can be repeated for multiple paths) |
+| `-D watch.verbose`          | extra log before and after every build                                  |
 
 ### Example
 

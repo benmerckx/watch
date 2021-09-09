@@ -264,12 +264,18 @@ function register() {
               }
               building = true;
               final start = Sys.time();
+              if (Context.defined('watch.verbose'))
+                Sys.println('\x1b[32m> Build started\x1b[39m');
               server.build(config, (hasError: Bool) -> {
                 building = false;
                 final duration = (Sys.time() - start) * 1000;
                 closeRun(() -> {
                   closeRun = cb -> cb();
                   timer.close(() -> {
+                    if (Context.defined('watch.verbose')) {
+                      final status = if (hasError) 31 else 32;
+                      Sys.println('\x1b[${status}m> Build finished\x1b[39m');
+                    }
                     if (hasError) {
                       Sys.println('\x1b[90m> Found errors\x1b[39m');
                     } else { 
