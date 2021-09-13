@@ -130,9 +130,15 @@ function createServer(port: Int, cb: (server: Server) -> Void) {
   }
 }
 
+private function shellOut(command: String) {
+  return switch Sys.systemName() {
+    case 'Windows': ['cmd.exe', '/c', command];
+    default: ['sh', '-c', command];
+  }
+}  
+
 function runCommand(command: String) {
-  // I have no clue how this stuff should actually be split
-  final args = command.split(' ').map(_ -> (_: NativeString));
+  final args = shellOut(command).map(NativeString.fromString);
   final stdout = Process.inheritFd(Process.stdout, Process.stdout);
   final stderr = Process.inheritFd(Process.stderr, Process.stderr);
   var exited = false;
