@@ -39,7 +39,7 @@ final testArguments = suite(test -> {
 
 final testSub = suite(test -> {
   test('check separators', () -> {
-    assert.ok(isSubOf('c:\\a\\b', 'C:/a'));
+    assert.ok(isSubOf('c:\\a\\b', 'c:/a'));
   });
 });
 
