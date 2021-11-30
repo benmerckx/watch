@@ -26,10 +26,14 @@ private final noInputOptions = [
   'v', 'verbose', 'debug', 'prompt', 'times', 'next', 'each', 'flash-strict'
 ];
 
+private final outputs = ['php', 'cpp', 'cs', 'java'];
+
 function buildArguments(args: Array<String>): BuildConfig {
   final arguments = [];
   final excludes = [];
+  final includes = [];
   final forward = [];
+  final dist = [];
   var i = 0;
   function skip() i++;
   while (i < args.length) {
@@ -41,7 +45,13 @@ function buildArguments(args: Array<String>): BuildConfig {
       case ['-D' | '--define', define] if (define.startsWith('watch.exclude')):
         excludes.push(define.substr(define.indexOf('=') + 1));
         skip();
-      default:
+      case ['-D' | '--define', define] if (define.startsWith('watch.include')):
+        includes.push(define.substr(define.indexOf('=') + 1));
+        skip();
+      case [arg, next]:
+          final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
+          if (outputs.indexOf(option) > -1) 
+            dist.push(next);
         forward.push(args[i]);
     }
     skip();
@@ -51,13 +61,19 @@ function buildArguments(args: Array<String>): BuildConfig {
     final isOption = arg.startsWith('-');
     if (inputExpected && !isOption) arguments[arguments.length - 1] += ' $arg';
     else arguments.push(arg);
+    final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
     inputExpected = 
-      isOption && noInputOptions.indexOf(arg.replace('-', '')) == -1;
+      isOption && noInputOptions.indexOf(option) == -1;
   }
-  return {arguments: arguments, excludes: excludes}
+  return {arguments: arguments, excludes: excludes, includes: includes, dist: dist}
 }
 
-typedef BuildConfig = {arguments: Array<String>, excludes: Array<String>}
+typedef BuildConfig = {
+  arguments: Array<String>,
+  excludes: Array<String>,
+  includes: Array<String>,
+  dist: Array<String>
+}
 
 function isSubOf(path: String, parent: String) {
   var a = Path.normalize(path);
@@ -70,6 +86,10 @@ function isSubOf(path: String, parent: String) {
   return a.startsWith(b + '/');
 }
 
+function pathIsIn(path: String, candidates: Array<String>) {
+  return candidates.exists(parent -> path == parent || isSubOf(path, parent));
+}
+
 function dedupePaths(paths: Array<String>) {
   final res = [];
   final todo = paths.slice(0);
@@ -78,8 +98,7 @@ function dedupePaths(paths: Array<String>) {
   });
   for (i in 0 ...todo.length) {
     final path = todo[i];
-    final isSubOfNext = 
-      todo.slice(i + 1).exists(parent -> isSubOf(path, parent));
+    final isSubOfNext = pathIsIn(path, todo.slice(i + 1));
     if (!isSubOfNext) res.push(path);
   }
   return res;
@@ -249,9 +268,17 @@ function register() {
     }
   }
   getPort(port -> {
-    final paths = dedupePaths(Context.getClassPath().map(FileSystem.absolutePath));
     final config = buildArguments(Sys.args());
     final excludes = config.excludes.map(FileSystem.absolutePath);
+    final includes = config.includes.map(FileSystem.absolutePath);
+    final classPaths = 
+      Context.getClassPath().map(FileSystem.absolutePath)
+        .filter(path -> {
+          final isRoot = path == FileSystem.absolutePath('.');
+          if (Context.defined('watch.excludeRoot') && isRoot) return false;
+          return !excludes.contains(path);
+        });
+    final paths = dedupePaths(classPaths.concat(includes));
     createServer(port, server -> {
       var next: Timer;
       var building = false;

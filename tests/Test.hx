@@ -12,12 +12,17 @@ final testArguments = suite(test -> {
     )
   );
 
-  test('do not append to options that do not require input', () -> 
+  test('do not append to options that do not require input', () -> {
     assert.equal(
       buildArguments(['-debug', 'path']).arguments,
       ['-debug', 'path']
-    )
-  );
+    );
+    
+    assert.equal(
+      buildArguments(['--no-output', 'path']).arguments,
+      ['--no-output', 'path']
+    );
+  });
 
   test('example setup', () -> 
     assert.equal(
@@ -27,12 +32,18 @@ final testArguments = suite(test -> {
       ['-js bin/test.js', '--next', '-php bin/php', '--each', '--cmd echo ok']
     )
   );
-
   
-  test('get excludes', () -> 
+  test('get excludes and includes', () -> 
     assert.equal(
-      buildArguments(['-D', 'watch.exclude=a', '-D', 'watch.exclude=b']),
-      {arguments: [], excludes: ['a', 'b']}
+      buildArguments(['-D', 'watch.include=tests', '-D', 'watch.exclude=a', '-D', 'watch.exclude=b']),
+      {arguments: [], includes: ['tests'], excludes: ['a', 'b'], dist: []}
+    )
+  );
+
+  test('parse output dirs', () -> 
+    assert.equal(
+      buildArguments(['--php', 'dist']),
+      {arguments: ['--php dist'], includes: [], excludes: [], dist: ['dist']}
     )
   );
 });
