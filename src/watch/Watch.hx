@@ -1,21 +1,21 @@
 package watch;
 
 import eval.NativeString;
-import eval.luv.Timer;
+import eval.luv.Dir;
 import eval.luv.FsEvent;
+import eval.luv.Idle;
 import eval.luv.Process;
+import eval.luv.Result;
 import eval.luv.SockAddr;
 import eval.luv.Tcp;
-import eval.luv.Result;
-import eval.luv.Idle;
-import eval.luv.Dir;
+import eval.luv.Timer;
 import haxe.ds.Option;
-import haxe.macro.Context;
 import haxe.io.Path;
+import haxe.macro.Context;
 import sys.FileSystem;
 
-using StringTools;
 using Lambda;
+using StringTools;
 
 private final loop = sys.thread.Thread.current().events;
 
@@ -427,7 +427,12 @@ function register() {
                                 res ->
                                 switch res {
                                     case Ok({file: (_.toString()) => file}):
-                                        if (StringTools.endsWith(file, '.hx')) {
+                                        final extensions = switch Context.definedValue('watch.extensions') {
+                                            case null: ['.hx'];
+                                            case v: v.split(',').map(s -> '.$s');
+                                        } 
+                                        final resExtension = file.substring(file.lastIndexOf('.'));
+                                        if (extensions.contains(resExtension)) {
                                             for (exclude in excludes) {
                                                 if (isSubOf(FileSystem.absolutePath(file), exclude))
                                                     return;
