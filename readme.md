@@ -21,16 +21,16 @@ Alternatively, just run it:
 
 All of these are optional.
 
-| Define                      | Description                                                                                 |
-| --------------------------- | ------------------------------------------------------------------------------------------- |
-| `-D watch.run=(string)`       | command to execute on successful builds                                                     |
-| `-D watch.port=(integer)`     | use this port for the completion server                                                     |
-| `-D watch.connect`            | connect to a running completion server (use with `watch.port`)                              |
-| `-D watch.excludeRoot`        | exclude watching the root directory (see [#3](https://github.com/benmerckx/watch/issues/3)) |
-| `-D watch.exclude=(string)`   | exclude this path from the watcher (can be repeated for multiple paths)                     |
-| `-D watch.include=(string)`   | include this path in the watcher (can be repeated for multiple paths)                       |
-| `-D watch.verbose`            | extra log before and after every build                                                      |
-| `-D watch.extensions=(string)`| extensions to watch, sperated by comma but without dot prefix (will watch '.hx files per default)                                                      |
+| Define                      | Description                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------------- |
+| `-D watch.run=(string)`       | command to execute on successful builds                                                           |
+| `-D watch.port=(integer)`     | use this port for the completion server                                                           |
+| `-D watch.connect`            | connect to a running completion server (use with `watch.port`)                                    |
+| `-D watch.excludeRoot`        | exclude watching the root directory (see [#3](https://github.com/benmerckx/watch/issues/3))       |
+| `-D watch.exclude=(string)`   | exclude this path from the watcher (can be repeated for multiple paths)                           |
+| `-D watch.include=(string)`   | include this path in the watcher (can be repeated for multiple paths)                             |
+| `-D watch.verbose`            | extra log before and after every build                                                            |
+| `-D watch.extensions=(string)`| extensions to watch, seperated by comma but without dot prefix (will watch '.hx files per default)|
 
 ### Example
 
