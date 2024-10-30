@@ -22,54 +22,54 @@ private final loop = sys.thread.Thread.current().events;
 private function fail(message: String, ?error: Dynamic) {
   Sys.println(message);
   if (error != null)
-      Sys.print('$error');
+    Sys.print('$error');
   Sys.exit(1);
 }
 
 private final noInputOptions = [
-    'interp', 'haxelib-global', 'no-traces', 'no-output', 'no-inline', 'no-opt',
-    'v', 'verbose', 'debug', 'prompt', 'times', 'next', 'each', 'flash-strict'
-  ];
+  'interp', 'haxelib-global', 'no-traces', 'no-output', 'no-inline', 'no-opt',
+  'v', 'verbose', 'debug', 'prompt', 'times', 'next', 'each', 'flash-strict'
+];
 
 private final outputs = ['php', 'cpp', 'cs', 'java'];
 
 function buildArguments(args: Array<String>): BuildConfig {
-    final arguments = [];
-    final excludes = [];
-    final includes = [];
-    final forward = [];
-    final dist = [];
-    var i = 0;
-    function skip() i++;
-    while (i < args.length) {
-      switch [args[i], args[i + 1]] {
-        case 
-          ['-L' | '-lib' | '--library', 'watch'],
-          ['--macro', 'watch.Watch.register()']:
-                  skip();
-              case ['-D' | '--define', define] if (define.startsWith('watch.exclude')):
-                  excludes.push(define.substr(define.indexOf('=') + 1));
-                  skip();
-              case ['-D' | '--define', define] if (define.startsWith('watch.include')):
-                  includes.push(define.substr(define.indexOf('=') + 1));
-                  skip();
-              case [arg, next]:
-                  final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
-                  if (outputs.indexOf(option) > -1)
-                      dist.push(next);
-                  forward.push(args[i]);
-          }
-        skip();
-    }
-    var inputExpected = false;
-    for (arg in forward) {
-        final isOption = arg.startsWith('-');
-    if (inputExpected && !isOption) arguments[arguments.length - 1] += ' $arg';
-    else arguments.push(arg);
-        final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
-    inputExpected = 
-      isOption && noInputOptions.indexOf(option) == -1;
-    }
+  final arguments = [];
+  final excludes = [];
+  final includes = [];
+  final forward = [];
+  final dist = [];
+  var i = 0;
+  function skip() i++;
+  while (i < args.length) {
+    switch [args[i], args[i + 1]] {
+      case 
+        ['-L' | '-lib' | '--library', 'watch'],
+        ['--macro', 'watch.Watch.register()']:
+                skip();
+            case ['-D' | '--define', define] if (define.startsWith('watch.exclude')):
+                excludes.push(define.substr(define.indexOf('=') + 1));
+                skip();
+            case ['-D' | '--define', define] if (define.startsWith('watch.include')):
+                includes.push(define.substr(define.indexOf('=') + 1));
+                skip();
+            case [arg, next]:
+                final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
+                if (outputs.indexOf(option) > -1)
+                    dist.push(next);
+                forward.push(args[i]);
+        }
+      skip();
+  }
+  var inputExpected = false;
+  for (arg in forward) {
+      final isOption = arg.startsWith('-');
+  if (inputExpected && !isOption) arguments[arguments.length - 1] += ' $arg';
+  else arguments.push(arg);
+      final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
+  inputExpected = 
+    isOption && noInputOptions.indexOf(option) == -1;
+  }
   return {arguments: arguments, excludes: excludes, includes: includes, dist: dist}
 }
 
@@ -149,7 +149,7 @@ function createServer(port: Int, cb: (server: Server) -> Void) {
         case Error(_):
           socket.close(() -> start());
       });
-    case [_, Error(e)] | [Error(e), _]:
+    case [_, Error(e)] | [Error(e), _]: 
       fail('Could not check if port is open', e);
   }
 }
@@ -159,7 +159,7 @@ private function shellOut(command: String) {
     case 'Windows': ['cmd.exe', '/c', command];
     default: ['sh', '-c', command];
   }
-}
+}  
 
 function runCommand(command: String) {
   final args = shellOut(command).map(NativeString.fromString);
@@ -171,21 +171,21 @@ function runCommand(command: String) {
     onExit: (_, _, _) -> exited = true
   }) {
     case Ok(process): cb -> {
-        if (!exited) {
-          final pid = process.pid();
-          final tree = [pid => []];
-          final pidsToProcess = [pid => true];
-          buildProcessTree(pid, tree, pidsToProcess, parentPid -> {
-            // Get processes with parent pid
-            final psargs = '-o pid --no-headers --ppid $parentPid';
-            final ps = new sys.io.Process('ps $psargs');
-            ps;
-          }, () -> {
-            killAll(tree, _ -> cb());
-          });
-        }
-        process.close(cb);
+      if (!exited) {
+        final pid = process.pid();
+        final tree = [pid => []];
+        final pidsToProcess = [pid => true];
+        buildProcessTree(pid, tree, pidsToProcess, parentPid -> {
+          // Get processes with parent pid
+          final psargs = '-o pid --no-headers --ppid $parentPid';
+          final ps = new sys.io.Process('ps $psargs');
+          ps;
+        }, () -> {
+          killAll(tree, _ -> cb());
+        });
       }
+      process.close(cb);
+    }
     case Error(e):
       Sys.stderr().writeString('Could not run "$command", because $e');
       cb -> cb();
@@ -292,7 +292,7 @@ function createBuild(port: Int, config: BuildConfig, done: (hasError: Bool) -> V
       fail('Could not connect to server', e);
   }
 }
- 
+
 function formatDuration(duration: Float) {
   if (duration < 1000)
     return '${Math.round(duration)}ms';
@@ -300,7 +300,7 @@ function formatDuration(duration: Float) {
   final s = Math.round(duration / 1000 * precision) / precision;
   return '${s}s';
 }
- 
+
 function getFreePort(done: (port: haxe.ds.Option<Int>) -> Void) {
   return switch [
     SockAddr.ipv4('127.0.0.1', 0),
@@ -320,7 +320,7 @@ function getFreePort(done: (port: haxe.ds.Option<Int>) -> Void) {
     default: done(None);
   }
 }
- 
+
 function register() {
   function getPort(done: (port: Int) -> Void) {
     switch Context.definedValue('watch.port') {
@@ -421,4 +421,3 @@ function register() {
   });
   loop.loop();
 }
-  
