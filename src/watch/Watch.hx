@@ -46,29 +46,29 @@ function buildArguments(args: Array<String>): BuildConfig {
       case 
         ['-L' | '-lib' | '--library', 'watch'],
         ['--macro', 'watch.Watch.register()']:
-          skip();
+        skip();
       case ['-D' | '--define', define] if (define.startsWith('watch.exclude')):
-          excludes.push(define.substr(define.indexOf('=') + 1));
-          skip();
+        excludes.push(define.substr(define.indexOf('=') + 1));
+        skip();
       case ['-D' | '--define', define] if (define.startsWith('watch.include')):
-          includes.push(define.substr(define.indexOf('=') + 1));
-          skip();
+        includes.push(define.substr(define.indexOf('=') + 1));
+        skip();
       case [arg, next]:
-          final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
-          if (outputs.indexOf(option) > -1)
-              dist.push(next);
+        final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
+        if (outputs.indexOf(option) > -1)
+          dist.push(next);
           forward.push(args[i]);
         }
-      skip();
+        skip();
   }
   var inputExpected = false;
   for (arg in forward) {
     final isOption = arg.startsWith('-');
-  if (inputExpected && !isOption) arguments[arguments.length - 1] += ' $arg';
-  else arguments.push(arg);
+    if (inputExpected && !isOption) arguments[arguments.length - 1] += ' $arg';
+    else arguments.push(arg);
     final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
-  inputExpected = 
-    isOption && noInputOptions.indexOf(option) == -1;
+    inputExpected = 
+      isOption && noInputOptions.indexOf(option) == -1;
   }
   return {arguments: arguments, excludes: excludes, includes: includes, dist: dist}
 }
