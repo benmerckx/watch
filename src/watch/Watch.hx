@@ -57,9 +57,9 @@ function buildArguments(args: Array<String>): BuildConfig {
         final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
         if (outputs.indexOf(option) > -1)
           dist.push(next);
-          forward.push(args[i]);
-        }
-        skip();
+        forward.push(args[i]);
+      }
+      skip();
   }
   var inputExpected = false;
   for (arg in forward) {
