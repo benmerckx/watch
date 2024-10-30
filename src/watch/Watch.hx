@@ -1,21 +1,21 @@
 package watch;
 
 import eval.NativeString;
-import eval.luv.Timer;
+import eval.luv.Dir;
 import eval.luv.FsEvent;
+import eval.luv.Idle;
 import eval.luv.Process;
+import eval.luv.Result;
 import eval.luv.SockAddr;
 import eval.luv.Tcp;
-import eval.luv.Result;
-import eval.luv.Idle;
-import eval.luv.Dir;
+import eval.luv.Timer;
 import haxe.ds.Option;
-import haxe.macro.Context;
 import haxe.io.Path;
+import haxe.macro.Context;
 import sys.FileSystem;
 
-using StringTools;
 using Lambda;
+using StringTools;
 
 private final loop = sys.thread.Thread.current().events;
 
@@ -55,7 +55,7 @@ function buildArguments(args: Array<String>): BuildConfig {
         skip();
       case [arg, next]:
           final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
-          if (outputs.indexOf(option) > -1)
+          if (outputs.indexOf(option) > -1) 
             dist.push(next);
         forward.push(args[i]);
     }
