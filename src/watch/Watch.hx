@@ -21,7 +21,7 @@ private final loop = sys.thread.Thread.current().events;
 
 private function fail(message: String, ?error: Dynamic) {
   Sys.println(message);
-  if (error != null)
+  if (error != null) 
     Sys.print('$error');
   Sys.exit(1);
 }
@@ -46,27 +46,27 @@ function buildArguments(args: Array<String>): BuildConfig {
       case 
         ['-L' | '-lib' | '--library', 'watch'],
         ['--macro', 'watch.Watch.register()']:
-                skip();
-            case ['-D' | '--define', define] if (define.startsWith('watch.exclude')):
-                excludes.push(define.substr(define.indexOf('=') + 1));
-                skip();
-            case ['-D' | '--define', define] if (define.startsWith('watch.include')):
-                includes.push(define.substr(define.indexOf('=') + 1));
-                skip();
-            case [arg, next]:
-                final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
-                if (outputs.indexOf(option) > -1)
-                    dist.push(next);
-                forward.push(args[i]);
+          skip();
+      case ['-D' | '--define', define] if (define.startsWith('watch.exclude')):
+          excludes.push(define.substr(define.indexOf('=') + 1));
+          skip();
+      case ['-D' | '--define', define] if (define.startsWith('watch.include')):
+          includes.push(define.substr(define.indexOf('=') + 1));
+          skip();
+      case [arg, next]:
+          final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
+          if (outputs.indexOf(option) > -1)
+              dist.push(next);
+          forward.push(args[i]);
         }
       skip();
   }
   var inputExpected = false;
   for (arg in forward) {
-      final isOption = arg.startsWith('-');
+    final isOption = arg.startsWith('-');
   if (inputExpected && !isOption) arguments[arguments.length - 1] += ' $arg';
   else arguments.push(arg);
-      final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
+    final option = arg.startsWith('--') ? arg.substr(2) : arg.substr(1);
   inputExpected = 
     isOption && noInputOptions.indexOf(option) == -1;
   }
@@ -186,7 +186,7 @@ function runCommand(command: String) {
       }
       process.close(cb);
     }
-    case Error(e):
+    case Error(e): 
       Sys.stderr().writeString('Could not run "$command", because $e');
       cb -> cb();
   }
