@@ -248,177 +248,177 @@ function killAll(tree:Map<Int, Array<Int>>, callback:(error:Option<String>) -> V
 }
 
 function createBuild(port: Int, config: BuildConfig, done: (hasError: Bool) -> Void, retry = 0) {
-    if (retry > 1000) fail('Could not connect to port $port');
-    switch [
-      SockAddr.ipv4('127.0.0.1', port), 
-      Tcp.init(loop)
-    ] {
-      case [Ok(addr), Ok(socket)]:
-        socket.connect(addr, res -> 
-          switch res {
-            case Ok(_):
-              var hasError = false;
-              socket.readStart(res -> switch res {
-                case Ok(_.toString() => data):
-                  for (line in data.split('\n')) {
-                    switch (line.charCodeAt(0)) {
-                      case 0x01:
-                        Sys.print(line.substr(1).split('\x01').join('\n'));
-                      case 0x02:
-                        hasError = true;
-                      default:
-                        if (line.length > 0) {
-                          Sys.stderr().writeString(line + '\n');
-                          Sys.stderr().flush();
-                        }
-                    }
+  if (retry > 1000) fail('Could not connect to port $port');
+  switch [
+    SockAddr.ipv4('127.0.0.1', port), 
+    Tcp.init(loop)
+  ] {
+    case [Ok(addr), Ok(socket)]:
+      socket.connect(addr, res -> 
+        switch res {
+          case Ok(_):
+            var hasError = false;
+            socket.readStart(res -> switch res {
+              case Ok(_.toString() => data):
+                for (line in data.split('\n')) {
+                  switch (line.charCodeAt(0)) {
+                    case 0x01:
+                      Sys.print(line.substr(1).split('\x01').join('\n'));
+                    case 0x02:
+                      hasError = true;
+                    default:
+                      if (line.length > 0) {
+                        Sys.stderr().writeString(line + '\n');
+                        Sys.stderr().flush();
+                      }
                   }
-                case Error(UV_EOF): 
-                  socket.close(() -> done(hasError));
-                case Error(e):
-                  fail('Server closed', e);
-              });
-              socket.write([config.arguments.join('\n') + '\000'], (res, bytesWritten) -> switch res {
-                case Ok(_):
-                case Error(e): fail('Could not write to server', e);
-              });
-            case Error(UV_ECONNREFUSED):
-              socket.close(() -> createBuild(port, config, done, retry + 1));
-            case Error(e): 
-              fail('Could not connect to server', e);
+                }
+              case Error(UV_EOF): 
+                socket.close(() -> done(hasError));
+              case Error(e):
+                fail('Server closed', e);
+            });
+            socket.write([config.arguments.join('\n') + '\000'], (res, bytesWritten) -> switch res {
+              case Ok(_):
+              case Error(e): fail('Could not write to server', e);
+            });
+          case Error(UV_ECONNREFUSED):
+            socket.close(() -> createBuild(port, config, done, retry + 1));
+          case Error(e): 
+            fail('Could not connect to server', e);
+        }
+      );
+    case [_, Error(e)] | [Error(e), _]:
+      fail('Could not connect to server', e);
+  }
+}
+ 
+function formatDuration(duration: Float) {
+  if (duration < 1000)
+    return '${Math.round(duration)}ms';
+  final precision = 100;
+  final s = Math.round(duration / 1000 * precision) / precision;
+  return '${s}s';
+}
+ 
+function getFreePort(done: (port: haxe.ds.Option<Int>) -> Void) {
+  return switch [
+    SockAddr.ipv4('127.0.0.1', 0),
+    Tcp.init(loop)
+  ] {
+    case [Ok(addr), Ok(socket)]:
+      switch socket.bind(addr) {
+        case Ok(_): 
+          switch socket.getSockName() {
+            case Ok(addr): 
+              socket.close(() -> done(Some(addr.port)));
+            default: 
+              socket.close(() -> done(None));
+          }
+        default: done(None);
+      }
+    default: done(None);
+  }
+}
+ 
+function register() {
+  function getPort(done: (port: Int) -> Void) {
+    switch Context.definedValue('watch.port') {
+      case null: 
+        getFreePort(res -> 
+          switch res {
+            case Some(port): done(port);
+            default: fail('Could not find free port');
           }
         );
-      case [_, Error(e)] | [Error(e), _]:
-        fail('Could not connect to server', e);
+      case v: done(Std.parseInt(v));
     }
   }
-  
-  function formatDuration(duration: Float) {
-    if (duration < 1000)
-      return '${Math.round(duration)}ms';
-    final precision = 100;
-    final s = Math.round(duration / 1000 * precision) / precision;
-    return '${s}s';
-  }
-  
-  function getFreePort(done: (port: haxe.ds.Option<Int>) -> Void) {
-    return switch [
-      SockAddr.ipv4('127.0.0.1', 0),
-      Tcp.init(loop)
-    ] {
-      case [Ok(addr), Ok(socket)]:
-        switch socket.bind(addr) {
-          case Ok(_): 
-            switch socket.getSockName() {
-              case Ok(addr): 
-                socket.close(() -> done(Some(addr.port)));
-              default: 
-                socket.close(() -> done(None));
+  getPort(port -> {
+    final config = buildArguments(Sys.args());
+    final excludes = config.excludes.map(FileSystem.absolutePath);
+    final includes = config.includes.map(FileSystem.absolutePath);
+    final classPaths = 
+      Context.getClassPath().map(FileSystem.absolutePath)
+        .filter(path -> {
+          final isRoot = path == FileSystem.absolutePath('.');
+          if (Context.defined('watch.excludeRoot') && isRoot) return false;
+          return !excludes.contains(path);
+        });
+    final paths = dedupePaths(classPaths.concat(includes));
+    createServer(port, server -> {
+      var next: Timer;
+      var building = false;
+      var closeRun = cb -> cb();
+      function build() {
+        switch Timer.init(loop) {
+          case Ok(timer):
+            if (next != null) {
+              next.stop();
             }
-          default: done(None);
-        }
-      default: done(None);
-    }
-  }
-  
-  function register() {
-    function getPort(done: (port: Int) -> Void) {
-      switch Context.definedValue('watch.port') {
-        case null: 
-          getFreePort(res -> 
-            switch res {
-              case Some(port): done(port);
-              default: fail('Could not find free port');
-            }
-          );
-        case v: done(Std.parseInt(v));
-      }
-    }
-    getPort(port -> {
-      final config = buildArguments(Sys.args());
-      final excludes = config.excludes.map(FileSystem.absolutePath);
-      final includes = config.includes.map(FileSystem.absolutePath);
-      final classPaths = 
-        Context.getClassPath().map(FileSystem.absolutePath)
-          .filter(path -> {
-            final isRoot = path == FileSystem.absolutePath('.');
-            if (Context.defined('watch.excludeRoot') && isRoot) return false;
-            return !excludes.contains(path);
-          });
-      final paths = dedupePaths(classPaths.concat(includes));
-      createServer(port, server -> {
-        var next: Timer;
-        var building = false;
-        var closeRun = cb -> cb();
-        function build() {
-          switch Timer.init(loop) {
-            case Ok(timer):
-              if (next != null) {
-                next.stop();
+            next = timer;
+            timer.start(() -> {
+              if (building) {
+                build();
+                return;
               }
-              next = timer;
-              timer.start(() -> {
-                if (building) {
-                  build();
-                  return;
-                }
-                building = true;
-                final start = Sys.time();
-                if (Context.defined('watch.verbose'))
-                  Sys.println('\x1b[32m> Build started\x1b[39m');
-                server.build(config, (hasError: Bool) -> {
-                  building = false;
-                  final duration = (Sys.time() - start) * 1000;
-                  closeRun(() -> {
-                    closeRun = cb -> cb();
-                    timer.close(() -> {
-                      if (Context.defined('watch.verbose')) {
-                        final status = if (hasError) 31 else 32;
-                        Sys.println('\x1b[${status}m> Build finished\x1b[39m');
+              building = true;
+              final start = Sys.time();
+              if (Context.defined('watch.verbose'))
+                Sys.println('\x1b[32m> Build started\x1b[39m');
+              server.build(config, (hasError: Bool) -> {
+                building = false;
+                final duration = (Sys.time() - start) * 1000;
+                closeRun(() -> {
+                  closeRun = cb -> cb();
+                  timer.close(() -> {
+                    if (Context.defined('watch.verbose')) {
+                      final status = if (hasError) 31 else 32;
+                      Sys.println('\x1b[${status}m> Build finished\x1b[39m');
+                    }
+                    if (hasError) {
+                      Sys.println('\x1b[90m> Found errors\x1b[39m');
+                    } else { 
+                      Sys.println('\x1b[36m> Build completed in ${formatDuration(duration)}\x1b[39m');
+                      switch Context.definedValue('watch.run') {
+                        case null:
+                        case v: closeRun = runCommand(v);
                       }
-                      if (hasError) {
-                        Sys.println('\x1b[90m> Found errors\x1b[39m');
-                      } else { 
-                        Sys.println('\x1b[36m> Build completed in ${formatDuration(duration)}\x1b[39m');
-                        switch Context.definedValue('watch.run') {
-                          case null:
-                          case v: closeRun = runCommand(v);
-                        }
-                      }
-                    });
+                    }
                   });
                 });
-              }, 100);
-            case Error(e): fail('Could not init time', e);
-          }
+              });
+            }, 100);
+          case Error(e): fail('Could not init time', e);
         }
-        function watch() {
-          for (path in paths) {
-            switch FsEvent.init(loop) {
-              case Ok(watcher):
-                watcher.start(path, [
-                  FsEventFlag.FS_EVENT_RECURSIVE
-                ], res ->
-                  switch res {
-                    case Ok({file: (_.toString()) => file}):
-                      if (StringTools.endsWith(file, '.hx')) {
-                        for (exclude in excludes) {
-                          if (isSubOf(FileSystem.absolutePath(file), exclude)) 
-                            return;
-                        }
-                        build();
+      }
+      function watch() {
+        for (path in paths) {
+          switch FsEvent.init(loop) {
+            case Ok(watcher):
+              watcher.start(path, [
+                FsEventFlag.FS_EVENT_RECURSIVE
+              ], res ->
+                switch res {
+                  case Ok({file: (_.toString()) => file}):
+                    if (StringTools.endsWith(file, '.hx')) {
+                      for (exclude in excludes) {
+                        if (isSubOf(FileSystem.absolutePath(file), exclude)) 
+                          return;
                       }
-                    case Error(e):
-                  }
-                );
-              case Error(e): fail('Could not watch $path', e); 
-            }
+                      build();
+                    }
+                  case Error(e):
+                }
+              );
+            case Error(e): fail('Could not watch $path', e); 
           }
         }
-        build();
-        watch();
-      });
+      }
+      build();
+      watch();
     });
-    loop.loop();
-  }
+  });
+  loop.loop();
+}
   
