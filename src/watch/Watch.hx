@@ -20,10 +20,10 @@ using Lambda;
 private final loop = sys.thread.Thread.current().events;
 
 private function fail(message: String, ?error: Dynamic) {
-    Sys.println(message);
-    if (error != null)
-        Sys.print('$error');
-    Sys.exit(1);
+  Sys.println(message);
+  if (error != null)
+      Sys.print('$error');
+  Sys.exit(1);
 }
 
 private final noInputOptions = [
@@ -81,32 +81,32 @@ typedef BuildConfig = {
 }
 
 function isSubOf(path: String, parent: String) {
-    var a = Path.normalize(path);
-    var b = Path.normalize(parent);
-    final caseInsensitive = Sys.systemName() == 'Windows';
-    if (caseInsensitive) {
-        a = a.toLowerCase();
-        b = b.toLowerCase();
-    }
-    return a.startsWith(b + '/');
+  var a = Path.normalize(path);
+  var b = Path.normalize(parent);
+  final caseInsensitive = Sys.systemName() == 'Windows';
+  if (caseInsensitive) {
+    a = a.toLowerCase();
+    b = b.toLowerCase();
+  }
+  return a.startsWith(b + '/');
 }
 
 function pathIsIn(path: String, candidates: Array<String>) {
-    return candidates.exists(parent -> path == parent || isSubOf(path, parent));
+  return candidates.exists(parent -> path == parent || isSubOf(path, parent));
 }
 
 function dedupePaths(paths: Array<String>) {
-    final res = [];
-    final todo = paths.slice(0);
-    todo.sort((a, b) -> {
-        return b.length - a.length;
-    });
+  final res = [];
+  final todo = paths.slice(0);
+  todo.sort((a, b) -> {
+    return b.length - a.length;
+  });
   for (i in 0 ...todo.length) {
-        final path = todo[i];
-        final isSubOfNext = pathIsIn(path, todo.slice(i + 1));
-        if (!isSubOfNext) res.push(path);
-    }
-    return res;
+    final path = todo[i];
+    final isSubOfNext = pathIsIn(path, todo.slice(i + 1));
+    if (!isSubOfNext) res.push(path);
+  }
+  return res;
 }
 
 typedef Server = {
@@ -115,136 +115,136 @@ typedef Server = {
 }
 
 function createServer(port: Int, cb: (server: Server) -> Void) {
-    if (Context.defined('watch.connect'))
-        return cb({
-            build: (config, done) -> createBuild(port, config, done),
-            close: (done) -> done()
+  if (Context.defined('watch.connect'))
+    return cb({
+      build: (config, done) -> createBuild(port, config, done),
+      close: (done) -> done()
+    });
+  final stdout = Process.inheritFd(Process.stdout, Process.stdout);
+  final stderr = Process.inheritFd(Process.stderr, Process.stderr);
+  function start(extension = '') {
+    switch Process.spawn(loop, 'haxe' + extension, ['haxe', '--wait', '$port'], {
+      redirect: [stdout, stderr],
+      onExit: (_, exitStatus, _) -> fail('Completion server exited', exitStatus)
+    }) {
+      case Ok(process):
+        cb({
+          build: (config, done) -> {
+            createBuild(port, config, done);
+          },
+          close: (done) -> process.close(done)
         });
-    final stdout = Process.inheritFd(Process.stdout, Process.stdout);
-    final stderr = Process.inheritFd(Process.stderr, Process.stderr);
-    function start(extension = '') {
-        switch Process.spawn(loop, 'haxe' + extension, ['haxe', '--wait', '$port'], {
-            redirect: [stdout, stderr],
-            onExit: (_, exitStatus, _) -> fail('Completion server exited', exitStatus)
-        }) {
-            case Ok(process):
-                cb({
-                    build: (config, done) -> {
-                        createBuild(port, config, done);
-                    },
-                    close: (done) -> process.close(done)
-                });
-            case Error(UV_ENOENT) if (Sys.systemName() == 'Windows' && extension == ''):
-                start('.cmd');
-            case Error(e): fail('Could not start completion server, is haxe in path?', e);
-        }
+      case Error(UV_ENOENT) if (Sys.systemName() == 'Windows' && extension == ''):
+        start('.cmd');
+      case Error(e): fail('Could not start completion server, is haxe in path?', e);
     }
-    switch [SockAddr.ipv4('127.0.0.1', port), Tcp.init(loop)] {
-        case [Ok(addr), Ok(socket)]:
-            socket.connect(addr, res -> switch res {
-                case Ok(_):
-                    socket.close(() -> {
-                        createServer(port + 1, cb);
-                    });
-                case Error(_):
-                    socket.close(() -> start());
-            });
-        case [_, Error(e)] | [Error(e), _]:
-            fail('Could not check if port is open', e);
-    }
+  }
+  switch [SockAddr.ipv4('127.0.0.1', port), Tcp.init(loop)] {
+    case [Ok(addr), Ok(socket)]:
+      socket.connect(addr, res -> switch res {
+        case Ok(_):
+          socket.close(() -> {
+            createServer(port + 1, cb);
+          });
+        case Error(_):
+          socket.close(() -> start());
+      });
+    case [_, Error(e)] | [Error(e), _]:
+      fail('Could not check if port is open', e);
+  }
 }
 
 private function shellOut(command: String) {
-    return switch Sys.systemName() {
-        case 'Windows': ['cmd.exe', '/c', command];
-        default: ['sh', '-c', command];
-    }
+  return switch Sys.systemName() {
+    case 'Windows': ['cmd.exe', '/c', command];
+    default: ['sh', '-c', command];
+  }
 }
 
 function runCommand(command: String) {
-    final args = shellOut(command).map(NativeString.fromString);
-    final stdout = Process.inheritFd(Process.stdout, Process.stdout);
-    final stderr = Process.inheritFd(Process.stderr, Process.stderr);
-    var exited = false;
-    return switch Process.spawn(loop, args[0], args, {
-        redirect: [stdout, stderr],
-        onExit: (_, _, _) -> exited = true
-    }) {
-        case Ok(process): cb -> {
-                if (!exited) {
-                    final pid = process.pid();
-                    final tree = [pid => []];
-                    final pidsToProcess = [pid => true];
-                    buildProcessTree(pid, tree, pidsToProcess, parentPid -> {
-                        // Get processes with parent pid
-                        final psargs = '-o pid --no-headers --ppid $parentPid';
-                        final ps = new sys.io.Process('ps $psargs');
-                        ps;
-                    }, () -> {
-                        killAll(tree, _ -> cb());
-                    });
-                }
-                process.close(cb);
-            }
-        case Error(e):
-            Sys.stderr().writeString('Could not run "$command", because $e');
-            cb -> cb();
-    }
+  final args = shellOut(command).map(NativeString.fromString);
+  final stdout = Process.inheritFd(Process.stdout, Process.stdout);
+  final stderr = Process.inheritFd(Process.stderr, Process.stderr);
+  var exited = false;
+  return switch Process.spawn(loop, args[0], args, {
+    redirect: [stdout, stderr],
+    onExit: (_, _, _) -> exited = true
+  }) {
+    case Ok(process): cb -> {
+        if (!exited) {
+          final pid = process.pid();
+          final tree = [pid => []];
+          final pidsToProcess = [pid => true];
+          buildProcessTree(pid, tree, pidsToProcess, parentPid -> {
+            // Get processes with parent pid
+            final psargs = '-o pid --no-headers --ppid $parentPid';
+            final ps = new sys.io.Process('ps $psargs');
+            ps;
+          }, () -> {
+            killAll(tree, _ -> cb());
+          });
+        }
+        process.close(cb);
+      }
+    case Error(e):
+      Sys.stderr().writeString('Could not run "$command", because $e');
+      cb -> cb();
+  }
 }
 
-function buildProcessTree(parentPid:Int, tree:Map<Int, Array<Int>>, pidsToProcess:Map<Int, Bool>, getChildPpid:(pid:Int) -> sys.io.Process, cb:() -> Void) {
-    final result = getChildPpid(parentPid);
-    if (result.exitCode() == 0) {
-        pidsToProcess.remove(parentPid);
-        final pid = Std.parseInt(result.stdout.readAll().toString());
-        final children = tree.get(parentPid) ?? [];
-        if (!children.has(pid)) {
-            children.push(pid);
+function buildProcessTree(parentPid: Int, tree: Map<Int, Array<Int>>, pidsToProcess: Map<Int, Bool>, getChildPpid: (pid: Int) -> sys.io.Process, cb:() -> Void) {
+  final result = getChildPpid(parentPid);
+  if (result.exitCode() == 0) {
+    pidsToProcess.remove(parentPid);
+    final pid = Std.parseInt(result.stdout.readAll().toString());
+    final children = tree.get(parentPid) ?? [];
+    if (!children.has(pid)) {
+      children.push(pid);
+    }
+    tree.set(parentPid, children);
+    tree.set(pid, []);
+    pidsToProcess.set(pid, true);
+    buildProcessTree(pid, tree, pidsToProcess, getChildPpid, cb);
+  } else {
+    pidsToProcess.remove(parentPid);
+    cb();
+  }
+
+  result.close();
+}
+
+function killAll(tree: Map<Int, Array<Int>>, callback: (error: Option<String>) -> Void) {
+  final killed: Map<Int, Bool> = [];
+  try {
+    [for (k in tree.keys()) k].iter(pid -> {
+      tree.get(pid).iter(pidpid -> {
+        final isKilled = killed.get(pidpid) ?? false;
+        if (!isKilled) {
+          switch Process.killPid(pidpid, SIGKILL) {
+            case Ok(_):
+              killed.set(pidpid, true);
+            case Error(e):
+          }
         }
-        tree.set(parentPid, children);
-        tree.set(pid, []);
-        pidsToProcess.set(pid, true);
-        buildProcessTree(pid, tree, pidsToProcess, getChildPpid, cb);
+      });
+      if (!(killed.get(pid) ?? false)) {
+        switch Process.killPid(pid, SIGKILL) {
+          case Ok(_):
+            killed.set(pid, true);
+          case Error(e):
+        }
+      }
+    });
+    if (callback != null) {
+      return callback(None);
+    }
+  } catch (err) {
+    if (callback != null) {
+      return callback(Some(err.toString()));
     } else {
-        pidsToProcess.remove(parentPid);
-        cb();
+      throw err;
     }
-
-    result.close();
-}
-
-function killAll(tree:Map<Int, Array<Int>>, callback:(error:Option<String>) -> Void) {
-    final killed:Map<Int, Bool> = [];
-    try {
-        [for (k in tree.keys()) k].iter(pid -> {
-            tree.get(pid).iter(pidpid -> {
-                final isKilled = killed.get(pidpid) ?? false;
-                if (!isKilled) {
-                    switch Process.killPid(pidpid, SIGKILL) {
-                        case Ok(_):
-                            killed.set(pidpid, true);
-                        case Error(e):
-                    }
-                }
-            });
-            if (!(killed.get(pid) ?? false)) {
-                switch Process.killPid(pid, SIGKILL) {
-                    case Ok(_):
-                        killed.set(pid, true);
-                    case Error(e):
-                }
-            }
-        });
-        if (callback != null) {
-            return callback(None);
-        }
-    } catch (err) {
-        if (callback != null) {
-            return callback(Some(err.toString()));
-        } else {
-            throw err;
-        }
-    }
+  }
 }
 
 function createBuild(port: Int, config: BuildConfig, done: (hasError: Bool) -> Void, retry = 0) {
