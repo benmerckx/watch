@@ -14,8 +14,8 @@ import haxe.io.Path;
 import haxe.macro.Context;
 import sys.FileSystem;
 
-using StringTools;
 using Lambda;
+using StringTools;
 
 private final loop = sys.thread.Thread.current().events;
 
