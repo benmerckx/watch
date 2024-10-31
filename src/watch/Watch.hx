@@ -1,14 +1,19 @@
 package watch;
 
 import eval.NativeString;
-import eval.luv.Timer;
+import eval.luv.Dir;
 import eval.luv.FsEvent;
+import eval.luv.Idle;
 import eval.luv.Process;
+import eval.luv.Result;
 import eval.luv.SockAddr;
 import eval.luv.Tcp;
-import haxe.macro.Context;
+import eval.luv.Timer;
+import haxe.ds.Option;
 import haxe.io.Path;
+import haxe.macro.Context;
 import sys.FileSystem;
+
 using StringTools;
 using Lambda;
 
