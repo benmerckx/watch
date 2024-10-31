@@ -254,6 +254,27 @@ function getFreePort(done: (port: haxe.ds.Option<Int>) -> Void) {
   }
 }
 
+function childDirs(path:String, dirs:Array<String>, cb:(dirs:Array<String>, done:Bool) -> Void) {
+  final numDirs = dirs.length;
+  Dir.scan(loop, path, result -> {
+      switch result {
+          case Ok(dirScan):
+              var dirent:Dirent = dirScan.next();
+              while (dirent != null) {
+                  if (dirent.kind == DirentKind.DIR) {
+                      final d = '${path}/${dirent.name.toString()}';
+                      dirs.push(d);
+                      childDirs(d, dirs, cb);
+                  }
+                  dirent = dirScan.next();
+              }
+              cb(dirs, dirs.length == numDirs);
+          case Error(e):
+              fail('Could not read child dir of $path', e);
+      }
+  });
+}
+
 function register() {
   function getPort(done: (port: Int) -> Void) {
     switch Context.definedValue('watch.port') {
