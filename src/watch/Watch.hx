@@ -321,6 +321,27 @@ function getFreePort(done: (port: haxe.ds.Option<Int>) -> Void) {
   }
 }
 
+function childDirs(path:String, dirs:Array<String>, cb:(dirs:Array<String>, done:Bool) -> Void) {
+  final numDirs = dirs.length;
+  Dir.scan(loop, path, result -> {
+      switch result {
+          case Ok(dirScan):
+              var dirent:Dirent = dirScan.next();
+              while (dirent != null) {
+                  if (dirent.kind == DirentKind.DIR) {
+                      final d = '${path}/${dirent.name.toString()}';
+                      dirs.push(d);
+                      childDirs(d, dirs, cb);
+                  }
+                  dirent = dirScan.next();
+              }
+              cb(dirs, dirs.length == numDirs);
+          case Error(e):
+              fail('Could not read child dir of $path', e);
+      }
+  });
+}
+
 function register() {
   function getPort(done: (port: Int) -> Void) {
     switch Context.definedValue('watch.port') {
@@ -345,7 +366,12 @@ function register() {
           if (Context.defined('watch.excludeRoot') && isRoot) return false;
           return !excludes.contains(path);
         });
-    final paths = dedupePaths(classPaths.concat(includes));
+        var paths = dedupePaths(classPaths.concat(includes));
+        var isDone = false;
+        paths.iter(p -> childDirs(p, paths, (dirs, done) -> {
+          isDone = done;
+          paths.concat(dirs);
+        }));
     createServer(port, server -> {
       var next: Timer;
       var building = false;
@@ -396,9 +422,8 @@ function register() {
         for (path in paths) {
           switch FsEvent.init(loop) {
             case Ok(watcher):
-              watcher.start(path, [
-                FsEventFlag.FS_EVENT_RECURSIVE
-              ], res ->
+              watcher.start(path, [],
+                res ->
                 switch res {
                   case Ok({file: (_.toString()) => file}):
                     if (StringTools.endsWith(file, '.hx')) {
@@ -415,8 +440,17 @@ function register() {
           }
         }
       }
-      build();
-      watch();
+      switch Idle.init(loop) {
+        case Ok(idle): 
+          idle.start(() -> {
+            if (isDone) {
+              idle.stop();
+              build();
+              watch();
+            }
+          });
+        case Error(e): fail('Could not get paths', e);
+       }
     });
   });
   loop.loop();
