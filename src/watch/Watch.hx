@@ -1,16 +1,21 @@
 package watch;
 
 import eval.NativeString;
-import eval.luv.Timer;
+import eval.luv.Dir;
 import eval.luv.FsEvent;
+import eval.luv.Idle;
 import eval.luv.Process;
+import eval.luv.Result;
 import eval.luv.SockAddr;
 import eval.luv.Tcp;
-import haxe.macro.Context;
+import eval.luv.Timer;
+import haxe.ds.Option;
 import haxe.io.Path;
+import haxe.macro.Context;
 import sys.FileSystem;
-using StringTools;
+
 using Lambda;
+using StringTools;
 
 private final loop = sys.thread.Thread.current().events;
 
@@ -166,17 +171,79 @@ function runCommand(command: String) {
     onExit: (_, _, _) -> exited = true
   }) {
     case Ok(process): cb -> {
-      // process.kill results in "Uncaught exception Cannot call null"
-      if (!exited)
-        switch Process.killPid(process.pid(), SIGKILL) {
-          case Ok(_):
-          case Error(e): fail('Could not end run command', e);
-        }
+      if (!exited) {
+        final pid = process.pid();
+        final tree = [pid => []];
+        final pidsToProcess = [pid => true];
+        buildProcessTree(pid, tree, pidsToProcess, parentPid -> {
+          // Get processes with parent pid
+          final psargs = '-o pid --no-headers --ppid $parentPid';
+          final ps = new sys.io.Process('ps $psargs');
+          ps;
+        }, () -> {
+          killAll(tree, _ -> cb());
+        });
+      }
       process.close(cb);
     }
     case Error(e): 
       Sys.stderr().writeString('Could not run "$command", because $e');
       cb -> cb();
+  }
+}
+
+function buildProcessTree(parentPid: Int, tree: Map<Int, Array<Int>>, pidsToProcess: Map<Int, Bool>, getChildPpid: (pid: Int) -> sys.io.Process, cb:() -> Void) {
+  final result = getChildPpid(parentPid);
+  if (result.exitCode() == 0) {
+    pidsToProcess.remove(parentPid);
+    final pid = Std.parseInt(result.stdout.readAll().toString());
+    final children = tree.get(parentPid) ?? [];
+    if (!children.has(pid)) {
+      children.push(pid);
+    }
+    tree.set(parentPid, children);
+    tree.set(pid, []);
+    pidsToProcess.set(pid, true);
+    buildProcessTree(pid, tree, pidsToProcess, getChildPpid, cb);
+  } else {
+    pidsToProcess.remove(parentPid);
+    cb();
+  }
+
+  result.close();
+}
+
+function killAll(tree: Map<Int, Array<Int>>, callback: (error: Option<String>) -> Void) {
+  final killed: Map<Int, Bool> = [];
+  try {
+    [for (k in tree.keys()) k].iter(pid -> {
+      tree.get(pid).iter(pidpid -> {
+        final isKilled = killed.get(pidpid) ?? false;
+        if (!isKilled) {
+          switch Process.killPid(pidpid, SIGKILL) {
+            case Ok(_):
+              killed.set(pidpid, true);
+            case Error(e):
+          }
+        }
+      });
+      if (!(killed.get(pid) ?? false)) {
+        switch Process.killPid(pid, SIGKILL) {
+          case Ok(_):
+            killed.set(pid, true);
+          case Error(e):
+        }
+      }
+    });
+    if (callback != null) {
+      return callback(None);
+    }
+  } catch (err) {
+    if (callback != null) {
+      return callback(Some(err.toString()));
+    } else {
+      throw err;
+    }
   }
 }
 
@@ -254,6 +321,27 @@ function getFreePort(done: (port: haxe.ds.Option<Int>) -> Void) {
   }
 }
 
+function childDirs(path:String, dirs:Array<String>, cb:(dirs:Array<String>, done:Bool) -> Void) {
+  final numDirs = dirs.length;
+  Dir.scan(loop, path, result -> {
+      switch result {
+          case Ok(dirScan):
+              var dirent:Dirent = dirScan.next();
+              while (dirent != null) {
+                  if (dirent.kind == DirentKind.DIR) {
+                      final d = '${path}/${dirent.name.toString()}';
+                      dirs.push(d);
+                      childDirs(d, dirs, cb);
+                  }
+                  dirent = dirScan.next();
+              }
+              cb(dirs, dirs.length == numDirs);
+          case Error(e):
+              fail('Could not read child dir of $path', e);
+      }
+  });
+}
+
 function register() {
   function getPort(done: (port: Int) -> Void) {
     switch Context.definedValue('watch.port') {
@@ -278,7 +366,12 @@ function register() {
           if (Context.defined('watch.excludeRoot') && isRoot) return false;
           return !excludes.contains(path);
         });
-    final paths = dedupePaths(classPaths.concat(includes));
+        var paths = dedupePaths(classPaths.concat(includes));
+        var isDone = false;
+        paths.iter(p -> childDirs(p, paths, (dirs, done) -> {
+          isDone = done;
+          paths.concat(dirs);
+        }));
     createServer(port, server -> {
       var next: Timer;
       var building = false;
@@ -329,9 +422,8 @@ function register() {
         for (path in paths) {
           switch FsEvent.init(loop) {
             case Ok(watcher):
-              watcher.start(path, [
-                FsEventFlag.FS_EVENT_RECURSIVE
-              ], res ->
+
+              watcher.start(path, [], res ->
                 switch res {
                   case Ok({file: (_.toString()) => file}):
                   final extensions = switch Context.definedValue('watch.extensions') {
@@ -353,8 +445,17 @@ function register() {
           }
         }
       }
-      build();
-      watch();
+      switch Idle.init(loop) {
+        case Ok(idle): 
+          idle.start(() -> {
+            if (isDone) {
+              idle.stop();
+              build();
+              watch();
+            }
+          });
+        case Error(e): fail('Could not get paths', e);
+       }
     });
   });
   loop.loop();
