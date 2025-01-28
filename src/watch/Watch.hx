@@ -220,7 +220,7 @@ function killAll(tree: Map<Int, Array<Int>>, callback: (error: Option<String>) -
       tree.get(pid).iter(pidpid -> {
         final isKilled = killed.get(pidpid) ?? false;
         if (!isKilled) {
-          switch Process.killPid(pidpid, SIGKILL) {
+          switch Process.killPid(pidpid, SIGTERM) {
             case Ok(_):
               killed.set(pidpid, true);
             case Error(e):
@@ -228,7 +228,7 @@ function killAll(tree: Map<Int, Array<Int>>, callback: (error: Option<String>) -
         }
       });
       if (!(killed.get(pid) ?? false)) {
-        switch Process.killPid(pid, SIGKILL) {
+        switch Process.killPid(pid, SIGTERM) {
           case Ok(_):
             killed.set(pid, true);
           case Error(e):
