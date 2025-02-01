@@ -177,9 +177,28 @@ function runCommand(command: String) {
         final pidsToProcess = [pid => true];
         buildProcessTree(pid, tree, pidsToProcess, parentPid -> {
           // Get processes with parent pid
-          final psargs = '-o pid --no-headers --ppid $parentPid';
-          final ps = new sys.io.Process('ps $psargs');
-          ps;
+          var pids:Array<Int> = null;
+          var result:sys.io.Process = null;
+          if (Sys.systemName() == "Windows") {
+            final psargs = 'process where (ParentProcessId=${parentPid}) get ProcessId';
+            final args = 'cmd.exe /c wmic $psargs';
+            result = new sys.io.Process(args);
+            if (result.exitCode() == 0) {
+              var pidResult = result.stdout.readAll().toString();
+              var pidStrings = pidResult.split("\n").slice(1); // Remove first line ("ProcessId")
+              pids = pidStrings.map(pidString -> Std.parseInt(pidString)).filter(p -> p != null);
+            }
+          } else {
+            final psargs = '-o pid --no-headers --ppid $parentPid';
+            result = new sys.io.Process('ps $psargs');
+            if (result.exitCode() == 0) {
+              pids = [Std.parseInt(result.stdout.readAll().toString())];
+            }
+          }
+
+          result?.close();
+
+          return pids;
         }, () -> {
           killAll(tree, _ -> cb());
         });
@@ -192,25 +211,23 @@ function runCommand(command: String) {
   }
 }
 
-function buildProcessTree(parentPid: Int, tree: Map<Int, Array<Int>>, pidsToProcess: Map<Int, Bool>, getChildPpid: (pid: Int) -> sys.io.Process, cb:() -> Void) {
-  final result = getChildPpid(parentPid);
-  if (result.exitCode() == 0) {
-    pidsToProcess.remove(parentPid);
-    final pid = Std.parseInt(result.stdout.readAll().toString());
-    final children = tree.get(parentPid) ?? [];
-    if (!children.has(pid)) {
-      children.push(pid);
-    }
-    tree.set(parentPid, children);
-    tree.set(pid, []);
-    pidsToProcess.set(pid, true);
-    buildProcessTree(pid, tree, pidsToProcess, getChildPpid, cb);
+function buildProcessTree(parentPid: Int, tree: Map<Int, Array<Int>>, pidsToProcess: Map<Int, Bool>, getChildPpid: (pid: Int) -> Array<Int>, cb:() -> Void) {
+	final childPids = getChildPpid(parentPid);
+	if (childPids != null && childPids.length > 0) {
+		pidsToProcess.remove(parentPid);
+		for (pid in childPids) {
+			final children = tree.get(parentPid) ?? [];
+			if (!children.has(pid)) {
+				children.push(pid);
+			}
+			tree.set(parentPid, children);
+			pidsToProcess.set(pid, true);
+			buildProcessTree(pid, tree, pidsToProcess, getChildPpid, cb);
+		}
   } else {
     pidsToProcess.remove(parentPid);
     cb();
   }
-
-  result.close();
 }
 
 function killAll(tree: Map<Int, Array<Int>>, callback: (error: Option<String>) -> Void) {
