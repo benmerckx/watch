@@ -439,11 +439,16 @@ function register() {
         for (path in paths) {
           switch FsEvent.init(loop) {
             case Ok(watcher):
-              watcher.start(path, [],
-                res ->
+
+              watcher.start(path, [], res ->
                 switch res {
                   case Ok({file: (_.toString()) => file}):
-                    if (StringTools.endsWith(file, '.hx')) {
+                  final extensions = switch Context.definedValue('watch.extensions') {
+                    case null: ['.hx'];
+                    case v: v.split(',').map(s -> '.$s');
+                  } 
+                  final resExtension = file.substring(file.lastIndexOf('.'));
+                  if (extensions.contains(resExtension)) {
                       for (exclude in excludes) {
                         if (isSubOf(FileSystem.absolutePath(file), exclude)) 
                           return;
