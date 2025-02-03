@@ -1,0 +1,13 @@
+{
+	"wrapping": {
+		"maxLineLength": 80
+	},
+	"indentation": {
+		"tabWidth": 2,
+		"character": "  "
+	},
+	"whitespace": {
+		"typeParamClosePolicy": "after",
+    "typeHintColonPolicy": "onlyAfter"
+	}
+}
