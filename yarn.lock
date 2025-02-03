@@ -251,9 +251,9 @@ lazystream@^1.0.0:
     readable-stream "^2.0.5"
 
 lix@^15.11.0:
-  version "15.11.0"
-  resolved "https://registry.yarnpkg.com/lix/-/lix-15.11.0.tgz#9904b11ae4e05c201c8ace2fbfd6c066e6c8ae62"
-  integrity sha512-3qtPAU70q8Bx5+rPvkcsFLGB2IZMX1O/p4G+NdMjulLUF1aUrf5sQfbVMZSxW5XtPlmBEzRT+zOnrSOMKNuXfA==
+  version "15.12.4"
+  resolved "https://registry.yarnpkg.com/lix/-/lix-15.12.4.tgz#fd0c4c7ce28daea66c92cf6b1857b29b7a21d961"
+  integrity sha512-xfwGQrXXNba9BM7VcP2u9WvElBYgGJW+1gviaFqJH5OUFPAhwv8TZNk5f+Yew4pyKOmMqshdUYgk9+d3U6P6kw==
 
 lodash.defaults@^4.2.0:
   version "4.2.0"
