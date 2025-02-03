@@ -1,7 +1,6 @@
 # watch
 
 Creates a completion server and rebuilds the project on source file changes.  
-Requires Haxe 4.2+
 
 ## Usage
 
@@ -15,7 +14,7 @@ Append the library to the haxe build command:
 
 Alternatively, just run it:
 
-<pre><a href="https://github.com/lix-pm/lix.client">lix</a> watch build.hxml # (requires lix 15.11+)</pre>
+<pre><a href="https://github.com/lix-pm/lix.client">lix</a> watch build.hxml</pre>
 
 ### Defines
 
